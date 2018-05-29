@@ -7,7 +7,7 @@ mylog module
 3. 基于上述原因，避免同一个模块中将"instance_log"或"class_log"和module_log同时使用。
 """
 __author__ = "liyatao"
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 __all__ = ["create_logger"]
 
 import logging
@@ -48,31 +48,39 @@ class MyHandler(RotatingFileHandler):
         return cls._handlers[keyname]
 
 
-def _add_handler(ltype, filename, maxBytes, backupCount):
+def _add_handler(ltype, filename, maxBytes, backupCount, fmt):
     handler = logging.StreamHandler() if filename is None else MyHandler(filename, maxBytes=maxBytes*1024*1024, backupCount=backupCount)
-    formatter = logging.Formatter(*_format[ltype])
+    if fmt is None:
+        formatter = logging.Formatter(*_format[ltype])
+    else:
+        formatter = logging.Formatter(fmt)
     handler.setFormatter(formatter)
     return handler
 
 
-def _create_logger(name, level, ltype, filename, maxBytes, backupCount):
+def _gen_logger(name, level, ltype, filename, maxBytes, backupCount, fmt):
     logger = logging.getLogger(name)
     if not logger.handlers:
-        logger.addHandler(_add_handler(ltype, filename, maxBytes, backupCount))
+        logger.addHandler(_add_handler(ltype, filename, maxBytes, backupCount, fmt))
         logger.setLevel(_levels[level])
     return logger
 
 
-def class_log(level=level, filename=None, maxBytes=20, backupCount=5):
+def class_log(level=level, filename=None, maxBytes=20, backupCount=5, fmt=None):
     def wrapper(instance):
-        name = "%s(%s)" % (instance.__module__, instance.__name__)
-        instance.logger = _create_logger(name, level, "class", filename, maxBytes, backupCount)
+        if instance.__module__ == "__main__":
+            name = "%s(%s)" % ("main", instance.__name__)
+        else:
+            name = "%s(%s)" % (instance.__module__, instance.__name__)
+        instance.logger = _gen_logger(name, level, "class", filename, maxBytes, backupCount, fmt)
         return instance
     return wrapper
 
 
-def module_log(name, level=level, filename=None, maxBytes=20, backupCount=5):
-    return _create_logger(name, level, "module", filename, maxBytes, backupCount)
+def module_log(name, level=level, filename=None, maxBytes=20, backupCount=5, fmt=None):
+    if name == "__main__":
+        name = "main"
+    return _gen_logger(name, level, "module", filename, maxBytes, backupCount, fmt)
 
 
 def create_logger(*args, **kw):
