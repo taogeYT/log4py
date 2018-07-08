@@ -4,10 +4,10 @@ mylog module
 1. 日志重复打印问题，是因为对同一个log实例，多次添加handler造成的。
 2. 并且日志存在继承关系，会对子log产生影响，子log不仅执行自身的handler，
 也会执行上层的handler一直到找到root的handler。
-3. 基于上述原因，避免同一个模块中将"instance_log"或"class_log"和module_log同时使用。
+本模块默认自动继承开关默认关闭，不会存在冲突问题
 """
 __author__ = "liyatao"
-__version__ = "1.0.2"
+__version__ = "1.0.4"
 __all__ = ["create_logger"]
 
 import logging
@@ -63,29 +63,37 @@ def _gen_logger(name, level, ltype, filename, maxBytes, backupCount, fmt):
     if not logger.handlers:
         logger.addHandler(_add_handler(ltype, filename, maxBytes, backupCount, fmt))
         logger.setLevel(_levels[level])
+        logger.propagate = False
     return logger
 
 
-def class_log(level=level, filename=None, maxBytes=20, backupCount=5, fmt=None):
-    def wrapper(instance):
+def bind_logger_to_object(*, level=level, filename=None, maxMBytes=20, backupCount=5, fmt=None, attr="logger"):
+    def decorator(instance):
         if instance.__module__ == "__main__":
             name = "%s(%s)" % ("main", instance.__name__)
         else:
             name = "%s(%s)" % (instance.__module__, instance.__name__)
-        instance.logger = _gen_logger(name, level, "class", filename, maxBytes, backupCount, fmt)
+        logger = _gen_logger(name, level, "class", filename, maxMBytes, backupCount, fmt)
+        setattr(instance, attr, logger)
         return instance
-    return wrapper
+    return decorator
 
 
-def module_log(name, level=level, filename=None, maxBytes=20, backupCount=5, fmt=None):
+def create_logger_by_name(name, *, level=level, filename=None, maxMBytes=20, backupCount=5, fmt=None):
     if name == "__main__":
         name = "main"
-    return _gen_logger(name, level, "module", filename, maxBytes, backupCount, fmt)
+    return _gen_logger(name, level, "module", filename, maxMBytes, backupCount, fmt)
 
 
 def create_logger(*args, **kw):
-    # print(args, kw)
-    if args and isinstance(args[0], str):
-        return module_log(*args, **kw)
+    """
+    create_logger(attr="logger", level="info", fmt=None, filename=None, maxMBytes=20, backup=5) -> decorator to bind logger
+    create_logger(name, level="info", fmt=None, filename=None, maxMBytes=20, backup=5) -> a logger instance
+    """
+    if args:
+        if isinstance(args[0], str):
+            return create_logger_by_name(*args, **kw)
+        else:
+            raise TypeError("positional argument 'name' must be 'str' object")
     else:
-        return class_log(**kw)
+        return bind_logger_to_object(**kw)

@@ -12,7 +12,7 @@ setup(
     name='log4py',
     py_modules=["log4py"],
     version=version,
-    description='Logger For Python',
+    description='Log For Python',
     classifiers=[
         "License :: OSI Approved :: MIT License",
         "Environment :: Web Environment",
