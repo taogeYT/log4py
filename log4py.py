@@ -7,7 +7,7 @@ mylog module
 本模块默认自动继承开关默认关闭，不会存在冲突问题
 """
 __author__ = "liyatao"
-__version__ = "1.0.6"
+__version__ = "1.0.8"
 __all__ = ["create_logger", "FileHandler", "SMTPHandler"]
 
 import logging
@@ -22,6 +22,7 @@ _levels = {
     "warn": logging.WARN,
     "error": logging.ERROR
 }
+levels = _levels.keys()
 
 _format = {
     "module": ('%(asctime)s %(levelname)s %(name)s(%(funcName)s): %(message)s', '%Y-%m-%d %H:%M:%S'),
@@ -39,6 +40,11 @@ class FileHandler(RotatingFileHandler):
         return cls._handlers[keyname]
 
     def __init__(self, filename="main.log", maxBytes=20*1024*1024, backupCount=5):
+        """
+        from log4py import FileHandler
+        filehandler = FileHandler("1.log")
+        log = create_logger(__name__, handler=filehandler)
+        """
         super().__init__(filename, maxBytes, backupCount)
 
 
@@ -54,46 +60,55 @@ def _add_handler(ltype, fmt, handler):
     return handler
 
 
-def _gen_logger(name, level, ltype, fmt, handler):
+def _gen_logger(name, level, ltype, fmt, handler, single):
     logger = logging.getLogger(name)
-    if not logger.handlers:
+    if not logger.handlers or not single:
         logger.addHandler(_add_handler(ltype, fmt, handler))
         logger.setLevel(_levels[level])
         logger.propagate = False
     return logger
 
 
-def bind_logger_to_object(*, level="info", fmt=None, attr="logger", handler=None):
+def bind_logger_to_object(*, level="info", fmt=None, handler=None, single=True, attr="logger", logger_name=None):
     """类装饰器，绑定logger"""
     def decorator(instance):
         if instance.__module__ == "__main__":
             name = "%s(%s)" % ("main", instance.__name__)
         else:
             name = "%s(%s)" % (instance.__module__, instance.__name__)
-        logger = _gen_logger(name, level, "class", fmt, handler)
+        if logger_name is None:
+            _name = "{}[{}]".format(name, attr) if attr != "logger" else name
+        else:
+            _name = logger_name.format(name=name)
+        logger = _gen_logger(_name, level, "class", fmt, handler, single)
         setattr(instance, attr, logger)
         return instance
     return decorator
 
 
-def create_logger_by_name(name, *, level="info", fmt=None, handler=None):
+def create_logger_by_name(name, *, level="info", fmt=None, handler=None, single=True):
     """创建logger对象"""
     if name == "__main__":
         name = "main"
-    return _gen_logger(name, level, "module", fmt, handler)
+    return _gen_logger(name, level, "module", fmt, handler, single)
 
 
 def create_logger(*args, **kw):
     """
     create_logger(attr="logger", level="info", fmt=None, handler=None, config=None) -> decorator to bind logger
     create_logger(name, level="info", fmt=None, handler=None, config=None) -> a logger instance
-    filehandler = FileHandler()
+
+    from log4py import FileHandler
+    filehandler = FileHandler() # filename='main.log'
     filelog = create_logger(__name__, handler=filehandler, level="warn")
 
-    @create_logger(attr="log")
+    @create_logger()
+    @create_logger(attr="log", logger_name="{name} user define logger name")
     class A:
         pass
 
+    # 阿里云邮箱服务器，阿里云服务器限制25端口，smtp服务器可以使用("smtp.mxhichina.com", 80)
+    from log4py import SMTPHandler
     mailhandler = SMTPHandler(("smtp.163.com", 25), '180********@163.com', ['****@outlook.com'], "服务器异常告警", credentials=('180********', '*******'))
     maillog = create_logger(__name__, handler=mailhandler)
     maillog.info("hi,", exc_info=True)

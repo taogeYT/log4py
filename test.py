@@ -1,9 +1,9 @@
 from log4py import create_logger, SMTPHandler
 import logging
-ch = logging.StreamHandler()
+stream = logging.StreamHandler()
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-logger.addHandler(ch)
+logger.addHandler(stream)
 logger.info("root log")
 
 
@@ -21,10 +21,13 @@ log.info("hello world")
 def func():
     log.error("hello function")
 
+@create_logger()
+# @create_logger(attr="log", logger_name="{name} hello")
 @create_logger(attr="log")
 class A:
     def __init__(self):
         self.log.info("hello class")
+        self.logger.info("hello class")
 
 func()
 A()
