@@ -7,7 +7,7 @@ mylog module
 本模块默认自动继承开关默认关闭，不会存在冲突问题
 """
 __author__ = "liyatao"
-__version__ = "1.0.8"
+__version__ = "1.1.0"
 __all__ = ["create_logger", "FileHandler", "SMTPHandler"]
 
 import logging
@@ -73,13 +73,14 @@ def bind_logger_to_object(*, level="info", fmt=None, handler=None, single=True, 
     """类装饰器，绑定logger"""
     def decorator(instance):
         if instance.__module__ == "__main__":
-            name = "%s(%s)" % ("main", instance.__name__)
+            name = "%s(%s.%s)" % ("main", instance.__name__, attr)
         else:
-            name = "%s(%s)" % (instance.__module__, instance.__name__)
-        if logger_name is None:
-            _name = "{}[{}]".format(name, attr) if attr != "logger" else name
-        else:
-            _name = logger_name.format(name=name)
+            name = "%s(%s.%s)" % (instance.__module__, instance.__name__, attr)
+        # if logger_name is None:
+        #     _name = "{}[{}]".format(name, attr) if attr != "logger" else name
+        # else:
+        #     _name = logger_name.format(name=name)
+        _name = name
         logger = _gen_logger(_name, level, "class", fmt, handler, single)
         setattr(instance, attr, logger)
         return instance
