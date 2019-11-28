@@ -6,8 +6,10 @@ mylog module
 也会执行上层的handler一直到找到root的handler。
 本模块默认自动继承开关默认关闭，不会存在冲突问题
 """
+from enum import Enum
+
 __author__ = "liyatao"
-__version__ = "1.1.0"
+__version__ = "1.1.2"
 __all__ = ["create_logger", "FileHandler", "SMTPHandler"]
 
 import logging
@@ -15,19 +17,26 @@ import os
 from logging.handlers import RotatingFileHandler
 from logging.handlers import SMTPHandler
 from logging import StreamHandler
-
-_levels = {
-    "debug": logging.DEBUG,
-    "info": logging.INFO,
-    "warn": logging.WARN,
-    "error": logging.ERROR
-}
-levels = _levels.keys()
-
+LOG_ENV_VALUE = os.getenv("PY_LOG_LEVEL", "info")
+# print(LOG_ENV_VALUE, os.getenv("PY_LOG_LEVEL"))
+# _levels = {
+#     "debug": logging.DEBUG,
+#     "info": logging.INFO,
+#     "warn": logging.WARN,
+#     "error": logging.ERROR
+# }
+# _levels.update({None: _levels.get(LOG_ENV_VALUE, logging.INFO)})
 _format = {
-    "module": ('%(asctime)s %(levelname)s %(name)s(%(funcName)s): %(message)s', '%Y-%m-%d %H:%M:%S'),
-    "class": ('%(asctime)s %(levelname)s %(name)s: %(message)s', '%Y-%m-%d %H:%M:%S')
+    "module": ('%(asctime)s %(levelname)s %(name)s.%(funcName)s: %(message)s', '%Y-%m-%d %H:%M:%S'),
+    "class": ('%(asctime)s %(levelname)s %(name)s.%(funcName)s: %(message)s', '%Y-%m-%d %H:%M:%S')
 }
+
+
+class LogLevel(Enum):
+    debug = logging.DEBUG
+    info = logging.INFO
+    warn = logging.WARN
+    error = logging.ERROR
 
 
 class FileHandler(RotatingFileHandler):
@@ -64,18 +73,24 @@ def _gen_logger(name, level, ltype, fmt, handler, single):
     logger = logging.getLogger(name)
     if not logger.handlers or not single:
         logger.addHandler(_add_handler(ltype, fmt, handler))
-        logger.setLevel(_levels[level])
+        # logger.setLevel(_levels[level])
+        logger.setLevel(LogLevel[level].value)
         logger.propagate = False
     return logger
 
 
-def bind_logger_to_object(*, level="info", fmt=None, handler=None, single=True, attr="logger", logger_name=None):
+def bind_logger_to_object(*, level=LOG_ENV_VALUE, fmt=None, handler=None, single=True, attr="logger", logger_name=None):
     """类装饰器，绑定logger"""
     def decorator(instance):
-        if instance.__module__ == "__main__":
-            name = "%s(%s.%s)" % ("main", instance.__name__, attr)
-        else:
-            name = "%s(%s.%s)" % (instance.__module__, instance.__name__, attr)
+        # if instance.__module__ == "__main__":
+        #     name = "%s(%s.%s)" % ("main", instance.__name__, attr)
+        # else:
+        #     name = "%s(%s.%s)" % (instance.__module__, instance.__name__, attr)
+
+        module_name = "main" if instance.__module__ == "__main__" else instance.__module__
+        fstring = "{module_name}.{instance_name}" if attr == "logger" else "{module_name}.{instance_name}<{attr_name}>"
+        name = fstring.format(module_name=module_name, instance_name=instance.__name__, attr_name=attr)
+
         # if logger_name is None:
         #     _name = "{}[{}]".format(name, attr) if attr != "logger" else name
         # else:
@@ -87,7 +102,7 @@ def bind_logger_to_object(*, level="info", fmt=None, handler=None, single=True, 
     return decorator
 
 
-def create_logger_by_name(name, *, level="info", fmt=None, handler=None, single=True):
+def create_logger_by_name(name, *, level=LOG_ENV_VALUE, fmt=None, handler=None, single=True):
     """创建logger对象"""
     if name == "__main__":
         name = "main"

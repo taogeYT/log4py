@@ -4,8 +4,6 @@ stream = logging.StreamHandler()
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 logger.addHandler(stream)
-logger.info("root log")
-
 
 params = {
     "mailhost": ("smtp.163.com", 25), "fromaddr": '***********@163.com',
@@ -13,21 +11,27 @@ params = {
     "credentials": ('***********', '********')
 }
 # log = create_logger(__name__, handler=SMTPHandler(**params), level="error")
-from log4py import FileHandler
-log = create_logger(__name__, handler=FileHandler("1.log"))
+# from log4py import FileHandler
+# log = create_logger(__name__, handler=FileHandler("1.log"))
+log = create_logger(__name__, level="error")
 
-log.info("hello world")
-
-def func():
+def func1():
     log.error("hello function")
 
 @create_logger()
-# @create_logger(attr="log", logger_name="{name} hello")
 @create_logger(attr="log")
 class A:
     def __init__(self):
         self.log.info("hello class")
         self.logger.info("hello class")
+        self.elog()
 
-func()
+    def elog(self):
+        self.logger.info("hello")
+
+logger.info("root log")
+log.info("hello world")
+logging.basicConfig(level=logging.WARNING)
+logging.info("info")
+func1()
 A()
