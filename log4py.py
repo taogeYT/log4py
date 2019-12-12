@@ -54,7 +54,7 @@ class FileHandler(RotatingFileHandler):
         filehandler = FileHandler("1.log")
         log = create_logger(__name__, handler=filehandler)
         """
-        super().__init__(filename, maxBytes, backupCount)
+        super().__init__(filename=filename,maxBytes=maxBytes,backupCount=backupCount)
 
 
 def _add_handler(ltype, fmt, handler):
