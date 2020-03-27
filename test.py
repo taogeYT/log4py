@@ -1,37 +1,61 @@
-from log4py import create_logger, SMTPHandler
-import logging
-stream = logging.StreamHandler()
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-logger.addHandler(stream)
+import os
+import unittest
 
-params = {
-    "mailhost": ("smtp.163.com", 25), "fromaddr": '***********@163.com',
-    "toaddrs": ['****@outlook.com'], "subject": "服务器异常告警",
-    "credentials": ('***********', '********')
-}
-# log = create_logger(__name__, handler=SMTPHandler(**params), level="error")
-# from log4py import FileHandler
-# log = create_logger(__name__, handler=FileHandler("1.log"))
-log = create_logger(__name__, level="error")
+from log4py import Logger, Level
 
-def func1():
-    log.error("hello function")
 
-@create_logger()
-@create_logger(attr="log")
-class A:
-    def __init__(self):
-        self.log.info("hello class")
-        self.logger.info("hello class")
-        self.elog()
+class TestLogger(unittest.TestCase):
+    log_file = "test.log"
+    file = None
 
-    def elog(self):
-        self.logger.info("hello")
+    @classmethod
+    def setUpClass(cls):
+        open(cls.log_file, mode="w", encoding="utf-8").close()
+        cls.file = open(cls.log_file, mode="r", encoding="utf-8")
+        file_handler = {'class': 'logging.FileHandler', 'filename': cls.log_file}
+        Logger.configure(root={"handlers": ["file"]}, handlers={"file": file_handler})
 
-logger.info("root log")
-log.info("hello world")
-logging.basicConfig(level=logging.WARNING)
-logging.info("info")
-func1()
-A()
+    @classmethod
+    def tearDownClass(cls):
+        cls.file.close()
+        os.remove(cls.log_file)
+
+    def test_get_logger(self):
+        log = Logger.get_logger(__name__)
+        self.assertEqual(log.level, 0)
+        message = "hello logger"
+        log.warning(message)
+        line = self.file.readline()
+        self.assertTrue(message in line and "WARNING" in line)
+        log.info(message)
+        line = self.file.readline()
+        self.assertEqual(line, "")
+        log.setLevel(Level.INFO)
+        log.info(message)
+        line = self.file.readline()
+        self.assertTrue(message in line and "INFO" in line)
+
+    def test_class_logger(self):
+        @Logger.class_logger()
+        class A:
+            @classmethod
+            def warning_log(cls, msg):
+                cls.logger.warning(msg)
+
+            @classmethod
+            def info_log(cls, msg):
+                cls.logger.info(msg)
+        a = A()
+        self.assertEqual(a.logger.level, 0)
+        message = "hello class logger"
+        a.warning_log(message)
+        line = self.file.readline()
+        self.assertTrue(message in line and "WARNING" in line)
+        a.info_log(message)
+        line = self.file.readline()
+        self.assertEqual(line, "")
+        a.logger.setLevel(Level.INFO)
+        a.info_log(message)
+        line = self.file.readline()
+        self.assertTrue(message in line and "INFO" in line)
+

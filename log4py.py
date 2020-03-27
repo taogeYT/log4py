@@ -1,138 +1,169 @@
-# -*- coding: utf-8 -*-
+# encoding: utf-8
 """
-mylog module
-1. 日志重复打印问题，是因为对同一个log实例，多次添加handler造成的。
-2. 并且日志存在继承关系，会对子log产生影响，子log不仅执行自身的handler，
-也会执行上层的handler一直到找到root的handler。
-本模块默认自动继承开关默认关闭，不会存在冲突问题
+@time: 2020/3/10 10:43 下午
+@desc:
 """
-from enum import Enum
-
-__author__ = "liyatao"
-__version__ = "1.1.2"
-__all__ = ["create_logger", "FileHandler", "SMTPHandler"]
-
+import logging.config
 import logging
 import os
-from logging.handlers import RotatingFileHandler
-from logging.handlers import SMTPHandler
-from logging import StreamHandler
-LOG_ENV_VALUE = os.getenv("PY_LOG_LEVEL", "info")
-# print(LOG_ENV_VALUE, os.getenv("PY_LOG_LEVEL"))
-# _levels = {
-#     "debug": logging.DEBUG,
-#     "info": logging.INFO,
-#     "warn": logging.WARN,
-#     "error": logging.ERROR
-# }
-# _levels.update({None: _levels.get(LOG_ENV_VALUE, logging.INFO)})
-_format = {
-    "module": ('%(asctime)s %(levelname)s %(name)s.%(funcName)s: %(message)s', '%Y-%m-%d %H:%M:%S'),
-    "class": ('%(asctime)s %(levelname)s %(name)s.%(funcName)s: %(message)s', '%Y-%m-%d %H:%M:%S')
-}
 
 
-class LogLevel(Enum):
-    debug = logging.DEBUG
-    info = logging.INFO
-    warn = logging.WARN
-    error = logging.ERROR
+class Level:
+    CRITICAL = logging.CRITICAL
+    ERROR = logging.ERROR
+    WARNING = logging.WARNING
+    INFO = logging.INFO
+    DEBUG = logging.DEBUG
 
 
-class FileHandler(RotatingFileHandler):
-    _handlers = {}
+class DefaultConfig(object):
+    version = 1
+    disable_existing_loggers = False
+    incremental = False
 
-    def __new__(cls, filename="main.log", *args, **kw):
-        # print(filename)
-        keyname = os.path.normpath(filename)
-        cls._handlers[keyname] = cls._handlers.get(keyname, object.__new__(cls))
-        return cls._handlers[keyname]
+    class Formatter:
+        name = "default"
+        format = "%(asctime)s %(name)s.%(funcName)s(%(filename)s:%(lineno)d) %(levelname)s: %(message)s"
+        datefmt = '%Y-%m-%d %H:%M:%S'
+        class_name = "logging.Formatter"
 
-    def __init__(self, filename="main.log", maxBytes=20*1024*1024, backupCount=5):
-        """
-        from log4py import FileHandler
-        filehandler = FileHandler("1.log")
-        log = create_logger(__name__, handler=filehandler)
-        """
-        super().__init__(filename, maxBytes, backupCount)
+    class Handler:
+        name = "default"
+        formatter = "default"
+        class_name = 'logging.StreamHandler'
 
+    class Root:
+        handlers = ["default"]
+        level = os.getenv("PY_LOG_LEVEL", "WARNING")
 
-def _add_handler(ltype, fmt, handler):
-    # handler = logging.StreamHandler() if filename is None else MyFileHandler(filename, maxBytes=maxBytes*1024*1024, backupCount=backupCount)
-    if handler is None:
-        handler = StreamHandler()
-    if fmt is None:
-        formatter = logging.Formatter(*_format[ltype])
-    else:
-        formatter = logging.Formatter(fmt)
-    handler.setFormatter(formatter)
-    return handler
-
-
-def _gen_logger(name, level, ltype, fmt, handler, single):
-    logger = logging.getLogger(name)
-    if not logger.handlers or not single:
-        logger.addHandler(_add_handler(ltype, fmt, handler))
-        # logger.setLevel(_levels[level])
-        logger.setLevel(LogLevel[level].value)
-        logger.propagate = False
-    return logger
-
-
-def bind_logger_to_object(*, level=LOG_ENV_VALUE, fmt=None, handler=None, single=True, attr="logger", logger_name=None):
-    """类装饰器，绑定logger"""
-    def decorator(instance):
-        # if instance.__module__ == "__main__":
-        #     name = "%s(%s.%s)" % ("main", instance.__name__, attr)
-        # else:
-        #     name = "%s(%s.%s)" % (instance.__module__, instance.__name__, attr)
-
-        module_name = "main" if instance.__module__ == "__main__" else instance.__module__
-        fstring = "{module_name}.{instance_name}" if attr == "logger" else "{module_name}.{instance_name}<{attr_name}>"
-        name = fstring.format(module_name=module_name, instance_name=instance.__name__, attr_name=attr)
-
-        # if logger_name is None:
-        #     _name = "{}[{}]".format(name, attr) if attr != "logger" else name
-        # else:
-        #     _name = logger_name.format(name=name)
-        _name = name
-        logger = _gen_logger(_name, level, "class", fmt, handler, single)
-        setattr(instance, attr, logger)
-        return instance
-    return decorator
+    @staticmethod
+    def get_config():
+        default_config = {
+            'version': DefaultConfig.version,
+            'disable_existing_loggers': DefaultConfig.disable_existing_loggers,
+            'incremental': DefaultConfig.incremental,
+            'formatters': {DefaultConfig.Formatter.name: {
+                'class': DefaultConfig.Formatter.class_name,
+                'format': DefaultConfig.Formatter.format,
+                'datefmt': DefaultConfig.Formatter.datefmt}},
+            'handlers': {DefaultConfig.Handler.name: {
+                'class': DefaultConfig.Handler.class_name,
+                'formatter': DefaultConfig.Handler.formatter}},
+            'root': {'handlers': DefaultConfig.Root.handlers,
+                     "level": DefaultConfig.Root.level},
+            'loggers': {
+                # '__main__': {"level": "DEBUG", "handlers": ['console']},
+            }
+        }
+        return default_config
 
 
-def create_logger_by_name(name, *, level=LOG_ENV_VALUE, fmt=None, handler=None, single=True):
-    """创建logger对象"""
-    if name == "__main__":
-        name = "main"
-    return _gen_logger(name, level, "module", fmt, handler, single)
-
-
-def create_logger(*args, **kw):
+def make_formatters(config):
     """
-    create_logger(attr="logger", level="info", fmt=None, handler=None, config=None) -> decorator to bind logger
-    create_logger(name, level="info", fmt=None, handler=None, config=None) -> a logger instance
+    {'class': 'logging.Formatter', 'format': Default.format, 'datefmt': '%Y-%m-%d %H:%M:%S'}
+    """
+    for key in config:
+        config[key] = {'class': 'logging.Formatter', 'datefmt': '%Y-%m-%d %H:%M:%S', **config[key]}
+    return config
 
-    from log4py import FileHandler
-    filehandler = FileHandler() # filename='main.log'
-    filelog = create_logger(__name__, handler=filehandler, level="warn")
 
-    @create_logger()
-    @create_logger(attr="log", logger_name="{name} user define logger name")
+def make_handlers(config):
+    """
+    {'class': 'logging.StreamHandler', 'formatter': 'default'}
+    """
+    for key in config:
+        config[key] = {'class': 'logging.StreamHandler', 'formatter': 'default', **config[key]}
+    return config
+
+
+class Logger(object):
+    logging.config.dictConfig(DefaultConfig.get_config())
+
+    @classmethod
+    def configure(cls, root=None, handlers=None, formatters=None, loggers=None):
+        """
+        :param root: dict, root logger 配置
+        :param handlers: dict, handler 配置
+        :param formatters: dict, formatter 配置
+        :param loggers: dict, 定制 logger 单独配置
+
+        常用handler配置示例
+        1. file handler
+        handlers = {"file": {'class': 'logging.FileHandler', 'filename': "run.log"}}
+        2. rotating file handler
+        handlers = {
+            "rotating_file": {
+                'class': 'logging.handlers.RotatingFileHandler',
+                "filename": "run.log", "maxBytes": "20*1024*1024", "backupCount": 5}
+        }
+        3. email handler, 注意：阿里云邮箱服务器限制25端口，smtp服务器使用("smtp.mxhichina.com", 80)
+        handlers = {
+            "email": {
+                "class": "logging.handlers.SMTPHandler", "mailhost": ("smtp.163.com", 25),
+                "fromaddr": '****@163.com', "toaddrs": ['****@outlook.com'],
+                "subject": "应用告警", "credentials": ('****', '****')
+            }
+        }
+
+        加载配置示例
+        from log4py import Logger
+        config = {
+            "handlers": {"file": {"class": "logging.FileHandler", 'filename': 'run.log'}},
+            "root": {"handlers": ["default", "file"], "level": "INFO"}
+        }
+        Logger.configure(**config)
+        """
+        root = {} if root is None else root
+        handlers = {} if handlers is None else handlers
+        formatters = {} if formatters is None else formatters
+        loggers = {} if loggers is None else loggers
+        default_config = DefaultConfig.get_config()
+        default_config["formatters"].update(make_handlers(formatters))
+        default_config["handlers"].update(make_handlers(handlers))
+        default_config["root"].update(root)
+        default_config["loggers"].update(make_handlers(loggers))
+        cls.dict_config(default_config)
+        return default_config
+
+    @classmethod
+    def dict_config(cls, config):
+        logging.config.dictConfig(config)
+        cls.not_config = False
+
+    @classmethod
+    def file_config(cls, file):
+        logging.config.fileConfig(file)
+        cls.not_config = False
+
+    @classmethod
+    def get_logger(cls, name):
+        """
+        log = Logger.get_logger(__name__)
+        log.warning("hello logger")
+        """
+        return logging.getLogger(name)
+
+    @classmethod
+    def class_logger(cls, attr="logger"):
+        """
+        @Logger.class_logger()
+        class A:
+            def run(self):
+                self.logger.warning("hello class logger")
+        """
+        def decorator(class_obj):
+            name = f"{class_obj.__module__}.{class_obj.__name__}"
+            setattr(class_obj, attr, logging.getLogger(name))
+            return class_obj
+        return decorator
+
+
+if __name__ == '__main__':
+    @Logger.class_logger()
     class A:
-        pass
-
-    # 阿里云邮箱服务器，阿里云服务器限制25端口，smtp服务器可以使用("smtp.mxhichina.com", 80)
-    from log4py import SMTPHandler
-    mailhandler = SMTPHandler(("smtp.163.com", 25), '180********@163.com', ['****@outlook.com'], "服务器异常告警", credentials=('180********', '*******'))
-    maillog = create_logger(__name__, handler=mailhandler)
-    maillog.info("hi,", exc_info=True)
-    """
-    if args:
-        if isinstance(args[0], str):
-            return create_logger_by_name(*args, **kw)
-        else:
-            raise TypeError("positional argument 'name' must be 'str' object")
-    else:
-        return bind_logger_to_object(**kw)
+        def __init__(self):
+            self.logger.info("hello class logger")
+    log = Logger.get_logger(__name__)
+    log.setLevel(Level.INFO)
+    log.info("hello logger")
+    A()

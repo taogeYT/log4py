@@ -1,13 +1,5 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-sftp-config.json
-
-# C extensions
-*.so
-
 # Distribution / packaging
-.Python
+__pycache__/
 env/
 bin/
 build/
@@ -20,11 +12,15 @@ parts/
 sdist/
 var/
 *.egg-info/
+*.py[cod]
+sftp-config.json
 .installed.cfg
 *.egg
 install.*
+*.so
 *.exe
 .idea
+demo.py
 
 # Installer logs
 pip-log.txt
@@ -45,15 +41,6 @@ coverage.xml
 # Translations
 *.mo
 
-# Mr Developer
-.mr.developer.cfg
-.project
-.pydevproject
-*.sublime-workspace
-
-# Rope
-.ropeproject
-
 # Django stuff:
 *.log
 *.pot
@@ -71,4 +58,3 @@ Icon?
 ehthumbs.db
 Thumbs.db
 MANIFEST
-
