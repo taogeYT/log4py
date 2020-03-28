@@ -3,6 +3,9 @@
 @time: 2020/3/10 10:43 下午
 @desc:
 """
+__author__ = "liyatao"
+__version__ = "2.0"
+
 import logging.config
 import logging
 import os
