@@ -22,7 +22,7 @@ OUTPUT:
 
 logger config
 
-    Logger.dict_config("logger.conf")
+    Logger.dict_config(dict_config)
 OR
 
     Logger.file_config("logger.conf")
