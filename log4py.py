@@ -4,7 +4,8 @@
 @desc:
 """
 __author__ = "liyatao"
-__version__ = "2.0"
+__version__ = "2.1"
+__all__ = ["Logger", "Level", "DefaultConfig"]
 
 import logging.config
 import logging
@@ -31,12 +32,12 @@ class DefaultConfig(object):
         class_name = "logging.Formatter"
 
     class Handler:
-        name = "default"
+        name = "stdout"
         formatter = "default"
         class_name = 'logging.StreamHandler'
 
     class Root:
-        handlers = ["default"]
+        handlers = ["stdout"]
         level = os.getenv("PY_LOG_LEVEL", "WARNING")
 
     @staticmethod
@@ -55,7 +56,7 @@ class DefaultConfig(object):
             'root': {'handlers': DefaultConfig.Root.handlers,
                      "level": DefaultConfig.Root.level},
             'loggers': {
-                # '__main__': {"level": "DEBUG", "handlers": ['console']},
+                # '__main__': {"level": "DEBUG", "handlers": ['stdout']},
             }
         }
         return default_config
@@ -81,14 +82,24 @@ def make_handlers(config):
 
 class Logger(object):
     logging.config.dictConfig(DefaultConfig.get_config())
+    root = logging.root
 
     @classmethod
     def configure(cls, root=None, handlers=None, formatters=None, loggers=None):
         """
+        配置日志，更新形式写入log4py模块的默认配置
         :param root: dict, root logger 配置
         :param handlers: dict, handler 配置
         :param formatters: dict, formatter 配置
         :param loggers: dict, 定制 logger 单独配置
+
+        加载配置示例
+        from log4py import Logger
+        config = {
+            "handlers": {"file": {"class": "logging.FileHandler", 'filename': 'run.log'}},
+            "root": {"handlers": ["default", "file"], "level": "INFO"}
+        }
+        Logger.configure(**config)
 
         常用handler配置示例
         1. file handler
@@ -107,14 +118,6 @@ class Logger(object):
                 "subject": "应用告警", "credentials": ('****', '****')
             }
         }
-
-        加载配置示例
-        from log4py import Logger
-        config = {
-            "handlers": {"file": {"class": "logging.FileHandler", 'filename': 'run.log'}},
-            "root": {"handlers": ["default", "file"], "level": "INFO"}
-        }
-        Logger.configure(**config)
         """
         root = {} if root is None else root
         handlers = {} if handlers is None else handlers
@@ -139,7 +142,12 @@ class Logger(object):
         cls.not_config = False
 
     @classmethod
-    def get_logger(cls, name):
+    def set_level(cls, level):
+        """设置全局日志级别"""
+        logging.root.setLevel(level)
+
+    @classmethod
+    def get_logger(cls, name=None):
         """
         log = Logger.get_logger(__name__)
         log.warning("hello logger")
