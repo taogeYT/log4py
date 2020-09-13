@@ -19,8 +19,8 @@ LogTest()
 
 output:     
 
-    2020-03-28 23:39:07 __main__.<module>(demo.py:28) WARNING: hello logger    
-    2020-03-28 23:39:07 __main__.LogTest.__init__(demo.py:34) WARNING: hello class logger
+    2020-09-13 20:35:17 INFO __main__.<module>(demo.py:43): hello logger
+    2020-09-13 20:35:17 INFO __main__.LogTest.__init__(demo.py:48): hello class logger
 
 
 logger config
