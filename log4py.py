@@ -4,7 +4,7 @@
 @desc:
 """
 __author__ = "liyatao"
-__version__ = "2.1"
+__version__ = "2.2"
 __all__ = ["Logger", "Level", "DefaultConfig"]
 
 import logging.config
@@ -27,7 +27,7 @@ class DefaultConfig(object):
 
     class Formatter:
         name = "default"
-        format = "%(asctime)s %(name)s.%(funcName)s(%(filename)s:%(lineno)d) %(levelname)s: %(message)s"
+        format = "%(asctime)s %(levelname)s %(name)s.%(funcName)s(%(filename)s:%(lineno)d): %(message)s"
         datefmt = '%Y-%m-%d %H:%M:%S'
         class_name = "logging.Formatter"
 
